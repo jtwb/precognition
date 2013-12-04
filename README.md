@@ -20,6 +20,15 @@ Precognition.record();
 Precognition.replay();
 ```
 
+### Running the test
+
+In the project directory
+```bash
+precognition $ python -m SimpleHTTPServer 3000
+```
+
+In your browser, visit `http://localhost:3000/test.html`
+
 # ≅ Errata
 
 Inspired by https://github.com/vcr/vcr.
