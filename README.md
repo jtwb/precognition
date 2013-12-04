@@ -1,4 +1,5 @@
-*≅ Precognition* is an HTTP traffic replay tool in the *Isocode* family.
+# ≅ Precognition
+*Precognition* is an HTTP traffic replay tool in the **Isocode** family.
 
 In record mode, *Precognition* quietly stores all XHR HTTP activity.
 
@@ -21,4 +22,4 @@ Precognition.replay();
 
 # ≅ Errata
 
-Inspired by [https://github.com/vcr/vcr].
+Inspired by https://github.com/vcr/vcr.
