@@ -7819,7 +7819,6 @@ jQuery.ajaxTransport(function( options ) {
                   xhr.statusText
                 );
               } else {
-                debugger;
                 complete(
                   xhrSuccessStatus[ xhr.status ] || xhr.status,
                   xhr.statusText,

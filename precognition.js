@@ -6,14 +6,24 @@
  * TODO find or create XHR Test suite
  */
 ;
+// Begin scope
 (function(undefined) {
+
+  // unused pattern for node support
   var root = window || this;
 
+
+
+  // 
+  // ******* CONSTANTS *******
+  //
+  // mode constants
   var MODE_REPLAY = 'replay',
       MODE_RECORD = 'record',
       MODE_OFF = 'off';
 
 
+  // XHR constants
   var XHR_HOOKS = [
     'onerror',
     'onload',
@@ -34,16 +44,6 @@
     'status',
     'statusText'
   ];
-
-  /*
-   * Runtime data
-   */
-  var nativeXHR = XMLHttpRequest;
-  var Data = {};
-
-  /*
-   * XHRProxy
-   */
   /*
    * jQuery target set:
    *
@@ -71,23 +71,18 @@
    * upload(1)
    * withCredentials
    */
-  /*
-   * On property setters:
-   *  The XHR API can be configured by setting properties,
-   *  e.g. myxhr.timeout = 3000;
-   *  The Recorder proxy may fail to capture these settings in IE < 9.
-   *
-   * Property setter strategy:
-   * 1 Sync values on all recieved function calls
-   * 2 Use defineSetter and defineProperty to catch "late" configuration
-   * 3 Ignore late configuration in IE<=8
-   */
-  /*
-   * Stories
-   * When a proxy method is called, it should trigger syncValues
-   * When a proxy method is called, it should apply the args to the native function of given name
-   * When a proxy method is called, if a wrapper is given, it should let the wrapper adjust the arguments and return value
-   */
+
+
+  //
+  // ************ RUNTIME CLOSURE DATA ***********
+  // 
+  var nativeXHR = XMLHttpRequest;
+  var Data = {};
+
+
+
+  //
+  // ************ PRIVATE UTILITY ****************
   var noop = function() { };
 
   var passthru = function(callback, args) { return callback(args) };
@@ -120,46 +115,61 @@
     };
   };
 
-  var XHRProxy = klass({
 
-    initialize: function(params) {
+
+  //
+  // *********** XHRProxy *************
+  //
+  /*
+   * On property setters:
+   *  The XHR API can be configured by setting properties,
+   *  e.g. myxhr.timeout = 3000;
+   *  The Recorder proxy may fail to capture these settings in IE < 9.
+   *
+   * Property setter strategy:
+   * 1 Sync values on all recieved function calls
+   * 2 Use defineSetter and defineProperty to catch "late" configuration
+   * 3 Ignore late configuration in IE<=8
+   */
+  /*
+   * Stories
+   * When a proxy method is called, it should trigger syncValues
+   * When a proxy method is called, it should apply the args to the native function of given name
+   * When a proxy method is called, if a wrapper is given, it should let the wrapper adjust the arguments and return value
+   */
+  var XHRProxy = klass(function(params) {
       var self = this;
       var nativeInstance = this.__native = new nativeXHR(params);
 
       (function setupXHRHooks() {
+
         // for each hook
         // attach a default handler which
         // - fires onHook
-        // - fires ononsuccess (or similar)
-        // - fires user onsuccess (or similar) if given
+        // - fires ononload
+        // - fires user onload
         for (var i in XHR_HOOKS) {
-          var name = XHR_HOOKS[i];
-          nativeInstance[name] = function() {
-            self.onHook.apply(self, arguments);
-            self['on' + name] && self['on' + name].apply(self, arguments);
-            self[name] && self[name].apply(this, arguments);
-          };
+          (function() {
+            var name = XHR_HOOKS[i];
+            nativeInstance[name] = function() {
+              console.log(name);
+
+              // fire onHook for all hooks
+              self.onHook.apply(self, arguments);
+
+              // fire ononload
+              self['on' + name] && self['on' + name].apply(self, arguments);
+
+              // fire onload
+              self[name] && self[name].apply(this, arguments);
+            };
+          })();
         }
       })();
 
-      (function setupXHRMutableProperties() {
-        // for each mutable property
-        // use Gecko Watch (polyfill)
-        // which uses Object.defineProperty
-        // forward mutations to the native object
-        for (var i in XHR_MUTABLE_PROPERTIES) {
-          var name = XHR_MUTABLE_PROPERTIES[i];
-          this.watch(name, function(_, __, value) {
-            nativeInstance[name] = value;
-            return value;
-          });
-        }
-      })();
-    },
+    })
+  .methods({
 
-    onHook: function() {
-      console.log(arguments);
-    },
 
     abort: proxy('abort'),
     open: proxy('open'),
@@ -171,6 +181,7 @@
     upload: proxy('upload'),
     
     syncProperties: function() {
+      var nativeInstance = this.__native;
       // when readyState < 2,
       // reading immutable properties throws DOMException
       if (nativeInstance.readyState >= 2) {
@@ -179,22 +190,67 @@
     }
   });
 
-  /*
-   * XHR Proxy: Recorder
-   */
-  var XHRRecorder = XHRProxy.extend({
-    getAllResponseHeaders: proxy('getAllResponseHeaders', function(next, args) {
-      var retval = next(args);
-      console.log('getAll');
-      console.log(retval);
-    }),
+
+
+  //
+  // ****************** XHRRecorder ******************
+  //
+  var XHRRecorder = XHRProxy.extend(function() {
+    var self = this;
+    var nativeInstance = this.__native;
+
+    (function setupXHRMutableProperties() {
+      // for each mutable property
+      // use Gecko Watch (polyfill)
+      // which uses Object.defineProperty
+      // forward mutations to the native object
+      for (var i in XHR_MUTABLE_PROPERTIES) {
+        (function() {
+          var name = XHR_MUTABLE_PROPERTIES[i];
+          this.watch(name, function(_, __, value) {
+            nativeInstance[name] = value;
+            return value;
+          });
+        })();
+      }
+    })();
+  })
+  .methods({
+
+    onHook: function() {
+      this.syncProperties();
+    },
+
+    // TODO record some shit
+    ononload: function(next, args) {
+      console.log('onload');
+      console.log(arguments);
+    },
+
+    ononerror: function(next, args) {
+      console.log('onerror');
+      console.log(arguments);
+    }
   });
+
+
 
   /*
    * XHR Proxy: Replay
+   *
+   * XMLHttpRequest.prototype.open = function() { ... }
+   *
+   * on 'send', fire user onload
+   * responseText, status, getAllResponseHeaders must all
+   * respond with fake data
+   *
+   * no need to watch the mutable settings
+   * as they will be ignored
    */
   var XHRReplay = XHRProxy.extend({
   });
+
+
 
   /*
    * Core controller
@@ -220,6 +276,8 @@
       root.XMLHttpRequest = nativeXHR;
     }
   };
+
+
 
   /*
    * Attach library to window
