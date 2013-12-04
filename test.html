@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head></head>
+<body>
+<script src="/klass.js"></script>
+<script src="/watch.js"></script>
+<script src="/precognition.js"></script>
+<script>
+    Precognition.record();
+</script>
+<script src="/jquery.js"></script>
+<script>
+
+
+    var run_app = function(callback) {
+
+        var cats, dogs;
+
+        return $.when(
+            $.getJSON('/cats.json', function(catdata) {
+              cats = catdata;
+            }),
+
+            $.getJSON('/dogs.json', function(dogfacts) {
+              dogs = dogfacts;
+            })
+        ).then(function() {
+            callback({ cats: cats, dogs: dogs });
+        });
+    };
+
+
+
+    var first_run = run_app(function(data) {
+        console.log(data);
+    });
+
+    first_run.then(function() {
+
+        Precognition.replay();
+        run_app(function(data) {
+
+            console.log(data);
+            Precognition.off();
+        });
+    });
+
+</script>
+
+</body>
+</html>
