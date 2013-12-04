@@ -108,10 +108,10 @@
       var args = arguments;
       var goNative = function(args) {
         proxyInstance.syncProperties();
-        nativeInstance[fname].apply(nativeInstance, args);
+        return nativeInstance[fname].apply(nativeInstance, args);
       };
-      console.log('proxy', fname);
-      return wrap(goNative, args);
+      // console.log('proxy', fname);
+      return wrap.call(this, goNative, args);
     };
   };
 
@@ -138,38 +138,38 @@
    * When a proxy method is called, if a wrapper is given, it should let the wrapper adjust the arguments and return value
    */
   var XHRProxy = klass(function(params) {
-      var self = this;
-      var nativeInstance = this.__native = new nativeXHR(params);
-
-      (function setupXHRHooks() {
-
-        // for each hook
-        // attach a default handler which
-        // - fires onHook
-        // - fires ononload
-        // - fires user onload
-        for (var i in XHR_HOOKS) {
-          (function() {
-            var name = XHR_HOOKS[i];
-            nativeInstance[name] = function() {
-              console.log(name);
-
-              // fire onHook for all hooks
-              self.onHook.apply(self, arguments);
-
-              // fire ononload
-              self['on' + name] && self['on' + name].apply(self, arguments);
-
-              // fire onload
-              self[name] && self[name].apply(this, arguments);
-            };
-          })();
-        }
-      })();
-
+      this.__native = new nativeXHR(params);
+      this._setupHooks();
     })
   .methods({
 
+    _setupHooks: function() {
+      var self = this;
+      var nativeInstance = this.__native;
+
+      // for each hook
+      // attach a default handler which
+      // - fires onHook
+      // - fires ononload
+      // - fires user onload
+      for (var i in XHR_HOOKS) {
+        (function() {
+          var name = XHR_HOOKS[i];
+          nativeInstance[name] = function() {
+            // console.log(name);
+
+            // fire onHook for all hooks
+            self.onHook.apply(self, arguments);
+
+            // fire ononload
+            self['on' + name] && self['on' + name].apply(self, arguments);
+
+            // fire onload
+            self[name] && self[name].apply(this, arguments);
+          };
+        })();
+      }
+    },
 
     abort: proxy('abort'),
     open: proxy('open'),
@@ -217,14 +217,24 @@
   })
   .methods({
 
+    open: proxy('open', function(next, args) {
+      this.__key = [args[0], args[1], args[3], args[4]].join(' ');
+      return next(args);
+    }),
+
     onHook: function() {
       this.syncProperties();
     },
 
-    // TODO record some shit
+    // record response into data
+    // under key set by open / send pair
     ononload: function(next, args) {
-      console.log('onload');
-      console.log(arguments);
+      Data[this.__key] = {
+        body: this.responseText,
+        headers: this.getAllResponseHeaders()
+      };
+      // console.log(this.responseText);
+      // console.log(this.__native.getAllResponseHeaders());
     },
 
     ononerror: function(next, args) {
