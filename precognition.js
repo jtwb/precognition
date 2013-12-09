@@ -5,7 +5,10 @@
  *
  * TODO ROBUSTNESS Expand browser support
  * - use SpyOn strategy (v2) over proxy object strategy (v1)
+ * - support XHR1
  * - support ActiveX XHR object
+ * - consider inter-spec translation of XHRLog
+ *   - Record with XHR2, replay as XHR1
  *
  * TODO ROBUSTNESS find or create a XHR Test suite
  */
@@ -233,7 +236,7 @@
     },
 
     _getCacheKeyFromOptions: function(opts) {
-      return [opts[0], opts[1], opts[3], opts[4]].join(' ');
+      return [opts[0], opts[1], opts[3], opts[4]].join(' ').trim();
     }
   });
 
@@ -312,9 +315,11 @@
 
     ononerror: noop,
 
+    // TODO impliment - parse string responseHeaders into hash
     getResponseHeader: proxy('getResponseHeader', function(_, args) {
-      var key = args[0];
-      return this._responseHeaders[key];
+      // var key = args[0];
+      // return this._responseHeaders[key];
+      return;
     }),
 
     getAllResponseHeaders: proxy('getAllResponseHeaders', function() {
