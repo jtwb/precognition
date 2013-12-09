@@ -7,6 +7,68 @@ In replay mode, *Precognition* matches requests by URL. Matched requests are rea
 
 
 
+# ≅ Usage
+
+### Replay from JSON file
+```javascript
+
+// inline the XHRLog file and attach to window
+XHRLog = {
+ 'GET /index.json': {
+        "_responseHeaders": "Date: Mon, 09 Dec 2013 01:33:55 GMT\r\nLast-Modified: Tue, 03 Dec 2013 05:35:47 GMT\r\nServer: nginx/1.4.3\r\nConnection: keep-alive\r\nContent-Length: 181\r\nContent-Type: application/json\r\n",
+        "readyState": 4,
+        "response": "[{\"name\":\"Wet Cat\",\"image_path\":\"assets/images/cat2.jpg\"},{\"name\":\"Bitey Cat\",\"image_path\":\"assets/images/cat1.jpg\"},{\"name\":\"Surprised Cat\",\"image_path\":\"assets/images/cat3.jpg\"}]\n",
+        "responseText": "[{\"name\":\"Wet Cat\",\"image_path\":\"assets/images/cat2.jpg\"},{\"name\":\"Bitey Cat\",\"image_path\":\"assets/images/cat1.jpg\"},{\"name\":\"Surprised Cat\",\"image_path\":\"assets/images/cat3.jpg\"}]\n",
+        "responseXML": null,
+        "status": 200,
+        "statusText": "OK"
+ }
+};
+
+// start replay mode
+Precognition.replay();
+
+$.getJSON('/index.json', function(cats) {
+ // ...
+});
+```
+
+
+
+### Record to JSON
+
+Try this in a [PhantomJS](http://phantomjs.org/) driver script for extra fun.
+
+```javascript
+
+Precognition.record();
+
+MyApp.start();
+
+setTimeout(function() {
+ console.log(JSON.stringify(window.XHRLog));
+}, 18000);
+
+```
+
+
+
+### Remote diagnostics
+
+Transmitting the XHRLog for diagnostic replay.
+
+```javascript
+
+Precognition.record();
+
+MyApp.start();
+
+setTimeout(function() {
+ $.post('/diagnostics', { log: window.XHRLog });
+}, 18000);
+
+```
+
 # ≅ Compatibility
 
 Precognition currently targets the [XHR2](http://www.w3.org/TR/XMLHttpRequest2/) API.
@@ -26,21 +88,6 @@ IE8 blockers
 
 
 
-# ≅ Usage
-
-```javascript
-/*
- * Activate recording mode. Data will be stored in `window.PrecogData`.
- */
-Precognition.record();
-
-/*
- * Activate replay mode. Subsequent XHR requests will be checked against
- * stored responses in `window.PrecogData`.
- */
-Precognition.replay();
-```
-
 ### Running the test
 
 In the project directory
@@ -49,6 +96,8 @@ precognition $ python -m SimpleHTTPServer 3000
 ```
 
 In your browser, visit `http://localhost:3000/test.html`
+
+
 
 # ≅ Errata
 
