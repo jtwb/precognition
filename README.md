@@ -29,7 +29,8 @@ XHRLog = {
 Precognition.replay();
 
 $.getJSON('/index.json', function(cats) {
- // ...
+ // will read from XHRLog
+ // will not fire a real XHR request
 });
 ```
 
