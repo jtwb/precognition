@@ -1,9 +1,13 @@
 /*
- * TODO Split me into files
- * TODO Browser support
- * - ActiveX XHR object
- * - readyState
- * TODO find or create XHR Test suite
+ * TODO REFACTOR Split me into files
+ *
+ * TODO REFACTOR PR Klass: support constructor inheritance in raw object usage
+ *
+ * TODO ROBUSTNESS Expand browser support
+ * - use SpyOn strategy (v2) over proxy object strategy (v1)
+ * - support ActiveX XHR object
+ *
+ * TODO ROBUSTNESS find or create a XHR Test suite
  */
 ;
 // Begin scope
@@ -77,7 +81,7 @@
   // ************ RUNTIME CLOSURE DATA ***********
   // 
   var nativeXHR = XMLHttpRequest;
-  var Data = {};
+  var Data = root.XHRLog || {};
 
 
 
@@ -93,6 +97,25 @@
     };
   };
 
+  var extend = function(host) { // ...
+    var sources = Array.prototype.slice.call(arguments, 1);
+    var l_sources = sources.length;
+    var i_sources;
+    var source;
+    var key;
+
+    for (i_sources = 0; i_sources < l_sources; i_sources++) {
+      source = sources[i_sources];
+      l_source = source.length;
+      for (key in source) {
+        host[key] = source[key];
+      }
+    }
+
+    return host;
+  };
+
+  // TODO REFACTOR - decompose into familiar underscore semantics, e.g. pick, extend
   var copyProperties = function(proplist, from, into) {
     for (var i in proplist) {
       var name = proplist[i];
@@ -100,6 +123,13 @@
     }
   };
 
+  // wrap native[fname] in given wrap function
+  //
+  // wrap function must accept arguments (next, args)
+  // and may invoke the native function with
+  //
+  //  result = next(args);
+  //
   var proxy = function(fname, wrap) {
     var wrap = wrap || passthru;
     return function() {
@@ -107,7 +137,7 @@
       var nativeInstance = this.__native;
       var args = arguments;
       var goNative = function(args) {
-        proxyInstance.syncProperties();
+        proxyInstance._syncImmutableProperties();
         return nativeInstance[fname].apply(nativeInstance, args);
       };
       // console.log('proxy', fname);
@@ -139,11 +169,31 @@
    */
   var XHRProxy = klass(function(params) {
       this.__native = new nativeXHR(params);
-      this._setupHooks();
+      this._proxyHooks();
     })
   .methods({
 
-    _setupHooks: function() {
+    abort: proxy('abort'),
+
+    open: proxy('open'),
+
+    send: proxy('send'),
+
+    overrideMimeType: proxy('overrideMimeType'),
+
+    getResponseHeader: proxy('getResponseHeader'),
+
+    getAllResponseHeaders: proxy('getAllResponseHeaders'),
+
+    setRequestHeader: proxy('setRequestHeader'),
+
+    upload: proxy('upload'),
+
+    onHook: function() {
+      this._syncImmutableProperties();
+    },
+    
+    _proxyHooks: function() {
       var self = this;
       var nativeInstance = this.__native;
 
@@ -171,22 +221,19 @@
       }
     },
 
-    abort: proxy('abort'),
-    open: proxy('open'),
-    send: proxy('send'),
-    overrideMimeType: proxy('overrideMimeType'),
-    getResponseHeader: proxy('getResponseHeader'),
-    getAllResponseHeaders: proxy('getAllResponseHeaders'),
-    setRequestHeader: proxy('setRequestHeader'),
-    upload: proxy('upload'),
-    
-    syncProperties: function() {
+    // copy from native object to proxy object
+    _syncImmutableProperties: function() {
       var nativeInstance = this.__native;
+
       // when readyState < 2,
       // reading immutable properties throws DOMException
       if (nativeInstance.readyState >= 2) {
         copyProperties(XHR_IMMUTABLE_PROPERTIES, nativeInstance, this);
       }
+    },
+
+    _getCacheKeyFromOptions: function(opts) {
+      return [opts[0], opts[1], opts[3], opts[4]].join(' ');
     }
   });
 
@@ -218,28 +265,29 @@
   .methods({
 
     open: proxy('open', function(next, args) {
-      this.__key = [args[0], args[1], args[3], args[4]].join(' ');
+      this.__key = this._getCacheKeyFromOptions(args);
       return next(args);
     }),
 
-    onHook: function() {
-      this.syncProperties();
-    },
-
     // record response into data
     // under key set by open / send pair
-    ononload: function(next, args) {
-      Data[this.__key] = {
-        body: this.responseText,
-        headers: this.getAllResponseHeaders()
-      };
-      // console.log(this.responseText);
-      // console.log(this.__native.getAllResponseHeaders());
+    ononload: function() {
+      Data[this.__key] = this._serialize();
+      // console.log('serialized');
+      // console.log(Data[this.__key]);
     },
 
-    ononerror: function(next, args) {
-      console.log('onerror');
-      console.log(arguments);
+    // includes
+    //   * immutable properties
+    //   * response headers
+    _serialize: function() {
+      var serialized = {
+        _responseHeaders: this.getAllResponseHeaders()
+      };
+
+      copyProperties(XHR_IMMUTABLE_PROPERTIES, this, serialized);
+
+      return serialized;
     }
   });
 
@@ -257,7 +305,46 @@
    * no need to watch the mutable settings
    * as they will be ignored
    */
-  var XHRReplay = XHRProxy.extend({
+  var XHRReplay = XHRRecorder.extend(function() {
+  }).methods({
+
+    ononload: noop,
+
+    ononerror: noop,
+
+    getResponseHeader: proxy('getResponseHeader', function(_, args) {
+      var key = args[0];
+      return this._responseHeaders[key];
+    }),
+
+    getAllResponseHeaders: proxy('getAllResponseHeaders', function() {
+      return this._responseHeaders;
+    }),
+
+    open: proxy('open', function(next, args) {
+      this.__key = this._getCacheKeyFromOptions(args);
+      return next(args);
+    }),
+
+    send: proxy('send', function(next, args) {
+
+      var self = this;
+
+      // if no replay available for this request, passthru
+      if (!(this.__key && this.__key in Data)) {
+        return next(args);
+      }
+
+      extend(this, Data[this.__key]);
+
+      // then execute user onload callback on next tick
+      setTimeout(function() {
+        self.onload && self.onload("load");
+      }, 0);
+
+      return false;
+    })
+
   });
 
 
@@ -279,6 +366,7 @@
     replay: function() {
       Precognition.mode = MODE_REPLAY;
       root.XMLHttpRequest = XHRReplay;
+      Data = root.XHRLog;
     },
 
     off: function() {
@@ -293,5 +381,5 @@
    * Attach library to window
    */
   root.Precognition = Precognition;
-  root.PrecogData = Data;
+  root.XHRLog = Data;
 })();
