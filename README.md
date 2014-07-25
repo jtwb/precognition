@@ -1,5 +1,7 @@
 # ≅ Precognition
-*Precognition* is an HTTP traffic replay tool in the **Isocode** family.
+*Precognition* is an HTTP traffic replay tool for NodeJS and browsers in the **Isocode** family.
+
+It establishes a transparent proxy to the XMLHTTPRequest API and uses this to record and replay traffic.
 
 In record mode, *Precognition* quietly stores all XHR HTTP activity to `window.XHRLog`.
 
@@ -8,6 +10,22 @@ In replay mode, *Precognition* matches requests by URL. Matched requests are rea
 
 
 # ≅ Usage
+
+### Accelerate isometric Javascript applications
+
+Imagine this setup:
+
+0. In node.js
+   0. MyApp.start();
+      1. Fetches /users.json
+      2. Renders HTML from that data
+   0. Serve rendered HTML plus myapp.js
+1. In browser
+   2. MyApp.start();
+      1. Fetches /users.json
+      2. Renders HTML from that data
+
+Precognition can avoid the second call to "Fetches /users.json". In NodeJS, run Precognition in Record mode and inline window.XHRLog into the rendered static page HTML (see Replay from JSON file below). In the browser, run Precognition in Replay mode and the call to /users.json will not require a full round-trip!
 
 ### Replay from JSON file
 ```javascript
