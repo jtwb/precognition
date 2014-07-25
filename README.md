@@ -15,17 +15,35 @@ In replay mode, *Precognition* matches requests by URL. Matched requests are rea
 
 Imagine this setup:
 
-0. In node.js
+0. In NodeJS
    0. MyApp.start();
       1. Fetches /users.json
+      2. Gets data from nearby REST API server
       2. Renders HTML from that data
    0. Serve rendered HTML plus myapp.js
-1. In browser
+1. Later, in browser
    2. MyApp.start();
       1. Fetches /users.json
+      2. Gets data from REST API server - *full round trip*
       2. Renders HTML from that data
 
 Precognition can avoid the second call to "Fetches /users.json". In NodeJS, run Precognition in Record mode and inline window.XHRLog into the rendered static page HTML (see Replay from JSON file below). In the browser, run Precognition in Replay mode and the call to /users.json will not require a full round-trip!
+
+0. In NodeJS
+   1. Precognition.record(); 
+   0. MyApp.start();
+      1. Fetches /users.json
+      2. Gets data from nearby REST API server
+      2. Renders HTML from that data
+   0. Serve rendered HTML plus myapp.js
+   0. Serve rendered HTML plus myapp.js plus `<script>XHRLog = {data}</script>`
+1. Later, in browser
+   2. Precognition.replay();
+   2. MyApp.start();
+      1. Fetches /users.json
+      2. Reads from XHRLog - *full round trip avoided*
+      2. Renders HTML from that data
+
 
 ### Replay from JSON file
 ```javascript
