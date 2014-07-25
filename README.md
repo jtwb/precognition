@@ -13,27 +13,29 @@ In replay mode, *Precognition* matches requests by URL. Matched requests are rea
 
 ### Accelerate isometric Javascript applications
 
-Imagine this setup:
+Running an isometric Javascript app without Precognition:
 
 0. In NodeJS
    0. MyApp.start();
       1. Fetches /users.json
-      2. Gets data from nearby REST API server
+      2. Gets data from nearby REST API server `xhr` `local network`
       2. Renders HTML from that data
    0. Serve rendered HTML plus myapp.js
 1. Later, in browser
    2. MyApp.start();
       1. Fetches /users.json
-      2. Gets data from REST API server - *full round trip*
+      2. Gets data from REST API server - *full round trip* `xhr` `full round trip`
       2. Renders HTML from that data
 
 Precognition can avoid the second call to "Fetches /users.json". In NodeJS, run Precognition in Record mode and inline window.XHRLog into the rendered static page HTML (see Replay from JSON file below). In the browser, run Precognition in Replay mode and the call to /users.json will not require a full round-trip!
+
+With Precognition:
 
 0. In NodeJS
    1. Precognition.record(); 
    0. MyApp.start();
       1. Fetches /users.json
-      2. Gets data from nearby REST API server
+      2. Gets data from nearby REST API server `xhr` `local network`
       2. Renders HTML from that data
    0. Serve rendered HTML plus myapp.js
    0. Serve rendered HTML plus myapp.js plus `<script>XHRLog = {data}</script>`
@@ -41,7 +43,7 @@ Precognition can avoid the second call to "Fetches /users.json". In NodeJS, run 
    2. Precognition.replay();
    2. MyApp.start();
       1. Fetches /users.json
-      2. Reads from XHRLog - *full round trip avoided*
+      2. Reads from XHRLog - *full round trip avoided* `xhr` `local Precognition cache`
       2. Renders HTML from that data
 
 
